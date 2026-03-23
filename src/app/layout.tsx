@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FormCatch — Form Backend in 30 Seconds",
+  title: "FormCatch - Form Backend in 10 Seconds",
   description:
-    "Point your HTML form at FormCatch. Submissions go straight to your inbox. No backend, no database, no signup required.",
+    "Drop your email, get an endpoint, and send HTML form submissions straight to your inbox. No account, no database, no monthly fee to start.",
   openGraph: {
-    title: "FormCatch — Form Backend in 30 Seconds",
-    description: "Point your HTML form at FormCatch. Submissions emailed to you instantly.",
+    title: "FormCatch - Form Backend in 10 Seconds",
+    description: "Email-first form endpoints for static sites. No account, no database, no setup drag.",
     type: "website",
   },
 };
