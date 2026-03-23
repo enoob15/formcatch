@@ -98,7 +98,7 @@ function handleRedirect(
   }
 
   // Default: redirect to our thank you page
-  const baseUrl = process.env.NEXT_PUBLIC_URL || "https://formcatch.dev";
+  const baseUrl = (process.env.NEXT_PUBLIC_URL || "https://formcatch.dev").trim();
   return NextResponse.redirect(`${baseUrl}/success`, 303);
 }
 

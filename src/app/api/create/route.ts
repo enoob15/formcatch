@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   }
 
   const formId = encryptEmail(email.toLowerCase().trim());
-  const baseUrl = process.env.NEXT_PUBLIC_URL || "https://formcatch.dev";
+  const baseUrl = (process.env.NEXT_PUBLIC_URL || "https://formcatch.dev").trim();
   const endpoint = `${baseUrl}/api/f/${formId}`;
 
   return NextResponse.json({ formId, endpoint });
