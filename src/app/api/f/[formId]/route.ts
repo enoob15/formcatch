@@ -77,10 +77,15 @@ async function handleSubmission(
       referer: req.headers.get("referer") || undefined,
       formId,
     });
-  } catch (err) {
-    console.error("Email send failed:", err);
+  } catch (err: any) {
+    console.error("Email send failed:", err?.message || err, JSON.stringify({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      user: process.env.SMTP_USER ? "set" : "missing",
+      pass: process.env.SMTP_PASS ? "set" : "missing",
+    }));
     return NextResponse.json(
-      { error: "Failed to deliver submission" },
+      { error: "Failed to deliver submission", detail: err?.message },
       { status: 500 }
     );
   }

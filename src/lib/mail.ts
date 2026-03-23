@@ -4,14 +4,18 @@ let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter() {
   if (!transporter) {
+    const port = parseInt(process.env.SMTP_PORT || "465");
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || "smtp.hostinger.com",
-      port: parseInt(process.env.SMTP_PORT || "465"),
-      secure: true,
+      port,
+      secure: port === 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
   }
   return transporter;
