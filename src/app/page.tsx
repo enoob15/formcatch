@@ -7,6 +7,12 @@ type CreateResult = {
   formId: string;
 };
 
+type CheckoutResult = {
+  checkoutUrl?: string;
+  error?: string;
+  sessionId?: string;
+};
+
 const steps = [
   {
     title: "Enter your email",
@@ -34,6 +40,8 @@ const pricing = [
       "No account required",
       "Works with any HTML form",
     ],
+    ctaHref: "/setup",
+    ctaLabel: "Get Started - Free",
     featured: false,
   },
   {
@@ -47,6 +55,7 @@ const pricing = [
       "Webhooks",
       "Priority delivery",
     ],
+    ctaLabel: "Get Started - Pro",
     featured: true,
   },
   {
@@ -60,9 +69,21 @@ const pricing = [
       "Shared management",
       "Everything in Pro",
     ],
+    ctaLabel: "Contact us",
     featured: false,
   },
 ];
+
+type PricingTier = {
+  ctaHref?: string;
+  ctaLabel: string;
+  description: string;
+  detail: string;
+  featured: boolean;
+  features: string[];
+  name: string;
+  price: string;
+};
 
 const comparisons = [
   {
@@ -118,6 +139,10 @@ function buildSnippet(endpoint: string) {
 
 export default function Home() {
   const [email, setEmail] = useState("");
+  const [checkoutEmail, setCheckoutEmail] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [result, setResult] = useState<CreateResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -163,6 +188,49 @@ export default function Home() {
     await navigator.clipboard.writeText(value);
     setCopiedTarget(target);
     window.setTimeout(() => setCopiedTarget(null), 1800);
+  }
+
+  function openCheckoutModal() {
+    setCheckoutError("");
+    setCheckoutEmail(email);
+    setCheckoutOpen(true);
+  }
+
+  function closeCheckoutModal() {
+    if (checkoutLoading) return;
+
+    setCheckoutError("");
+    setCheckoutOpen(false);
+  }
+
+  async function handleCheckout(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCheckoutError("");
+    setCheckoutLoading(true);
+
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: checkoutEmail,
+          plan: "pro",
+        }),
+      });
+
+      const data = (await response.json()) as CheckoutResult;
+
+      if (!response.ok || !data.checkoutUrl) {
+        throw new Error(data.error || "Unable to start checkout");
+      }
+
+      window.location.assign(data.checkoutUrl);
+    } catch (caughtError) {
+      setCheckoutError(
+        caughtError instanceof Error ? caughtError.message : "Unable to start checkout",
+      );
+      setCheckoutLoading(false);
+    }
   }
 
   return (
@@ -465,7 +533,7 @@ export default function Home() {
           </div>
 
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            {pricing.map((tier) => (
+            {pricing.map((tier: PricingTier) => (
               <div
                 key={tier.name}
                 className={`rounded-[1.75rem] border p-6 backdrop-blur-2xl ${
@@ -502,6 +570,32 @@ export default function Home() {
                       <span>{feature}</span>
                     </div>
                   ))}
+                </div>
+
+                <div className="mt-8">
+                  {tier.name === "Pro" ? (
+                    <button
+                      type="button"
+                      onClick={openCheckoutModal}
+                      className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-indigo-500 px-5 text-sm font-semibold text-white transition hover:bg-indigo-400"
+                    >
+                      {tier.ctaLabel}
+                    </button>
+                  ) : tier.name === "Free" ? (
+                    <a
+                      href={tier.ctaHref}
+                      className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10"
+                    >
+                      {tier.ctaLabel}
+                    </a>
+                  ) : (
+                    <a
+                      href="mailto:hello@formcatch.dev?subject=FormCatch%20Team"
+                      className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10"
+                    >
+                      {tier.ctaLabel}
+                    </a>
+                  )}
                 </div>
               </div>
             ))}
@@ -580,6 +674,69 @@ export default function Home() {
           </div>
         </footer>
       </div>
+
+      {checkoutOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/95 p-6 shadow-2xl shadow-black/60">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.22em] text-indigo-200">
+                  FormCatch Pro
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold text-white">
+                  Start your $5/month subscription
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeCheckoutModal}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-lg text-white transition hover:bg-white/10"
+                aria-label="Close checkout modal"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="mt-4 text-sm leading-7 text-slate-400">
+              Enter the email you want attached to your subscription, then continue through
+              Stripe Checkout.
+            </p>
+
+            <form onSubmit={handleCheckout} className="mt-6 grid gap-4">
+              <label className="grid gap-2 text-sm text-slate-300">
+                Email
+                <input
+                  type="email"
+                  value={checkoutEmail}
+                  onChange={(event) => setCheckoutEmail(event.target.value)}
+                  placeholder="you@company.com"
+                  required
+                  className="h-12 rounded-2xl border border-white/10 bg-slate-900 px-4 text-base text-white outline-none transition placeholder:text-slate-500 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={checkoutLoading}
+                className="inline-flex h-12 items-center justify-center rounded-2xl bg-indigo-500 px-5 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {checkoutLoading ? "Redirecting..." : "Continue to Stripe"}
+              </button>
+            </form>
+
+            {checkoutError ? (
+              <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+                {checkoutError}
+              </div>
+            ) : null}
+
+            <div className="mt-5 text-xs leading-6 text-slate-500">
+              Unlimited form submissions. Hosted checkout. Cancel any time.
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
