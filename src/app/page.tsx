@@ -13,6 +13,32 @@ type CheckoutResult = {
   sessionId?: string;
 };
 
+type PaidPlan = "pro" | "team";
+
+type PricingTier =
+  | {
+      ctaHref: string;
+      ctaKind: "link";
+      ctaLabel: string;
+      description: string;
+      detail: string;
+      featured: boolean;
+      features: string[];
+      name: string;
+      price: string;
+    }
+  | {
+      ctaKind: "checkout";
+      ctaLabel: string;
+      description: string;
+      detail: string;
+      featured: boolean;
+      features: string[];
+      name: string;
+      plan: PaidPlan;
+      price: string;
+    };
+
 const steps = [
   {
     title: "Enter your email",
@@ -28,7 +54,7 @@ const steps = [
   },
 ];
 
-const pricing = [
+const pricing: PricingTier[] = [
   {
     name: "Free",
     price: "$0",
@@ -42,10 +68,12 @@ const pricing = [
     ],
     ctaHref: "/setup",
     ctaLabel: "Get Started - Free",
+    ctaKind: "link",
     featured: false,
   },
   {
     name: "Pro",
+    plan: "pro" as PaidPlan,
     price: "$5",
     detail: "per month",
     description: "For production forms that need more volume and automation without a bulky platform.",
@@ -56,10 +84,12 @@ const pricing = [
       "Priority delivery",
     ],
     ctaLabel: "Get Started - Pro",
+    ctaKind: "checkout",
     featured: true,
   },
   {
     name: "Team",
+    plan: "team" as PaidPlan,
     price: "$15",
     detail: "per month",
     description: "For teams that need shared visibility, routing, and a cleaner operational view.",
@@ -69,20 +99,21 @@ const pricing = [
       "Shared management",
       "Everything in Pro",
     ],
-    ctaLabel: "Contact us",
+    ctaLabel: "Get Started - Team",
+    ctaKind: "checkout",
     featured: false,
   },
 ];
 
-type PricingTier = {
-  ctaHref?: string;
-  ctaLabel: string;
-  description: string;
-  detail: string;
-  featured: boolean;
-  features: string[];
-  name: string;
-  price: string;
+const paidPlanContent: Record<PaidPlan, { name: string; priceLabel: string }> = {
+  pro: {
+    name: "FormCatch Pro",
+    priceLabel: "$5/month",
+  },
+  team: {
+    name: "FormCatch Team",
+    priceLabel: "$15/month",
+  },
 };
 
 const comparisons = [
@@ -143,6 +174,7 @@ export default function Home() {
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<PaidPlan>("pro");
   const [result, setResult] = useState<CreateResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -190,9 +222,10 @@ export default function Home() {
     window.setTimeout(() => setCopiedTarget(null), 1800);
   }
 
-  function openCheckoutModal() {
+  function openCheckoutModal(plan: PaidPlan) {
     setCheckoutError("");
     setCheckoutEmail(email);
+    setCheckoutPlan(plan);
     setCheckoutOpen(true);
   }
 
@@ -214,7 +247,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: checkoutEmail,
-          plan: "pro",
+          plan: checkoutPlan,
         }),
       });
 
@@ -573,24 +606,17 @@ export default function Home() {
                 </div>
 
                 <div className="mt-8">
-                  {tier.name === "Pro" ? (
+                  {tier.ctaKind === "checkout" ? (
                     <button
                       type="button"
-                      onClick={openCheckoutModal}
+                      onClick={() => openCheckoutModal(tier.plan)}
                       className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-indigo-500 px-5 text-sm font-semibold text-white transition hover:bg-indigo-400"
                     >
                       {tier.ctaLabel}
                     </button>
-                  ) : tier.name === "Free" ? (
-                    <a
-                      href={tier.ctaHref}
-                      className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10"
-                    >
-                      {tier.ctaLabel}
-                    </a>
                   ) : (
                     <a
-                      href="mailto:hello@formcatch.dev?subject=FormCatch%20Team"
+                      href={tier.ctaHref}
                       className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10"
                     >
                       {tier.ctaLabel}
@@ -681,10 +707,10 @@ export default function Home() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.22em] text-indigo-200">
-                  FormCatch Pro
+                  {paidPlanContent[checkoutPlan].name}
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-white">
-                  Start your $5/month subscription
+                  Start your {paidPlanContent[checkoutPlan].priceLabel} subscription
                 </h3>
               </div>
 
@@ -732,7 +758,7 @@ export default function Home() {
             ) : null}
 
             <div className="mt-5 text-xs leading-6 text-slate-500">
-              Unlimited form submissions. Hosted checkout. Cancel any time.
+              Hosted Stripe subscription checkout. Cancel any time.
             </div>
           </div>
         </div>

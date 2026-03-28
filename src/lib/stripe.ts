@@ -1,8 +1,31 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
-const PRO_PRICE_LOOKUP_KEY = "formcatch-pro-monthly";
-const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const WEBHOOK_TOLERANCE_SECONDS = 300;
+const DEFAULT_STRIPE_API_BASE = "https://api.stripe.com/v1";
+
+export const STRIPE_PLANS = ["pro", "team"] as const;
+
+export type StripePlan = (typeof STRIPE_PLANS)[number];
+
+const STRIPE_PLAN_CONFIG: Record<
+  StripePlan,
+  {
+    displayName: string;
+    lookupKey: string;
+    priceEnvVar: string;
+  }
+> = {
+  pro: {
+    displayName: "FormCatch Pro",
+    lookupKey: "formcatch-pro-monthly",
+    priceEnvVar: "STRIPE_PRO_PRICE_ID",
+  },
+  team: {
+    displayName: "FormCatch Team",
+    lookupKey: "formcatch-team-monthly",
+    priceEnvVar: "STRIPE_TEAM_PRICE_ID",
+  },
+};
 
 type StripeListResponse<T> = {
   data: T[];
@@ -12,12 +35,14 @@ type StripePrice = {
   id: string;
 };
 
-type StripeProduct = {
-  id: string;
-};
-
 type StripeCheckoutSession = {
   id: string;
+  metadata?: {
+    plan?: string;
+  };
+  mode?: string;
+  payment_status?: string;
+  status?: string | null;
   url?: string;
 };
 
@@ -48,8 +73,14 @@ function getSecretKey() {
   return secretKey;
 }
 
+function getStripeApiBase() {
+  return (
+    process.env.STRIPE_API_BASE?.trim().replace(/\/$/, "") ?? DEFAULT_STRIPE_API_BASE
+  );
+}
+
 async function stripeFetch<T>(path: string, init?: RequestInit) {
-  const response = await fetch(`${STRIPE_API_BASE}${path}`, {
+  const response = await fetch(`${getStripeApiBase()}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${getSecretKey()}`,
@@ -66,15 +97,34 @@ async function stripeFetch<T>(path: string, init?: RequestInit) {
   return (await response.json()) as T;
 }
 
-export async function getProPriceId() {
-  const configuredPriceId = process.env.STRIPE_PRICE_ID?.trim();
+export function isStripePlan(value: string): value is StripePlan {
+  return STRIPE_PLANS.includes(value as StripePlan);
+}
+
+function getConfiguredPriceId(plan: StripePlan) {
+  const configuredPriceId = process.env[STRIPE_PLAN_CONFIG[plan].priceEnvVar]?.trim();
 
   if (configuredPriceId) {
     return configuredPriceId;
   }
 
+  if (plan === "pro") {
+    return process.env.STRIPE_PRICE_ID?.trim();
+  }
+
+  return undefined;
+}
+
+export async function getPriceIdForPlan(plan: StripePlan) {
+  const configuredPriceId = getConfiguredPriceId(plan);
+
+  if (configuredPriceId) {
+    return configuredPriceId;
+  }
+
+  const { lookupKey, priceEnvVar } = STRIPE_PLAN_CONFIG[plan];
   const existingPrices = await stripeFetch<StripeListResponse<StripePrice>>(
-    `/prices?active=true&limit=1&lookup_keys[0]=${PRO_PRICE_LOOKUP_KEY}`,
+    `/prices?active=true&limit=1&lookup_keys[0]=${lookupKey}`,
   );
 
   const existingPrice = existingPrices.data[0];
@@ -83,36 +133,20 @@ export async function getProPriceId() {
     return existingPrice.id;
   }
 
-  const product = await stripeFetch<StripeProduct>("/products", {
-    body: new URLSearchParams({
-      description: "Unlimited form submissions for FormCatch.",
-      name: "FormCatch Pro",
-    }),
-    method: "POST",
-  });
-
-  const price = await stripeFetch<StripePrice>("/prices", {
-    body: new URLSearchParams({
-      currency: "usd",
-      lookup_key: PRO_PRICE_LOOKUP_KEY,
-      nickname: "FormCatch Pro Monthly",
-      product: product.id,
-      "recurring[interval]": "month",
-      unit_amount: "500",
-    }),
-    method: "POST",
-  });
-
-  return price.id;
+  throw new Error(
+    `Missing Stripe price for ${plan}. Set ${priceEnvVar} or create an active monthly price with lookup key ${lookupKey}.`,
+  );
 }
 
 export async function createCheckoutSession({
   baseUrl,
   email,
+  plan,
   priceId,
 }: {
   baseUrl: string;
   email: string;
+  plan: StripePlan;
   priceId: string;
 }) {
   return stripeFetch<StripeCheckoutSession>("/checkout/sessions", {
@@ -122,14 +156,24 @@ export async function createCheckoutSession({
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
       "metadata[email]": email,
-      "metadata[plan]": "pro",
+      "metadata[plan]": plan,
       mode: "subscription",
       "subscription_data[metadata][email]": email,
-      "subscription_data[metadata][plan]": "pro",
+      "subscription_data[metadata][plan]": plan,
       success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
     }),
     method: "POST",
   });
+}
+
+export async function getCheckoutSession(sessionId: string) {
+  return stripeFetch<StripeCheckoutSession>(
+    `/checkout/sessions/${encodeURIComponent(sessionId)}`,
+  );
+}
+
+export function getPlanDisplayName(plan: StripePlan) {
+  return STRIPE_PLAN_CONFIG[plan].displayName;
 }
 
 export function getAppUrl(origin?: string) {

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:stripe": "npm run build && node scripts/test-stripe-flow.mjs",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "next": "^15.3.0",

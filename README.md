@@ -62,6 +62,22 @@ npm start
 | `SMTP_PASS` | Yes | SMTP password |
 | `SMTP_FROM` | No | From address (default: SMTP_USER) |
 | `NEXT_PUBLIC_URL` | Yes | Public URL of your deployment |
+| `STRIPE_SECRET_KEY` | For paid plans | Stripe secret key used to create Checkout sessions |
+| `STRIPE_WEBHOOK_SECRET` | For paid plans | Stripe webhook signing secret for `/api/webhooks/stripe` |
+| `STRIPE_PRO_PRICE_ID` | For paid plans | Stripe recurring monthly price id for the `$5` Pro tier |
+| `STRIPE_TEAM_PRICE_ID` | For paid plans | Stripe recurring monthly price id for the `$15` Team tier |
+
+`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is not required for the current hosted-checkout flow because the browser is redirected to a server-created Stripe Checkout session.
+
+## Stripe Billing
+
+FormCatch supports three pricing tiers:
+
+- `Free` at `$0`, which links directly into setup and does not touch Stripe.
+- `Pro` at `$5/month`, which creates a Stripe Checkout subscription.
+- `Team` at `$15/month`, which creates a Stripe Checkout subscription.
+
+For deployment and Stripe dashboard setup, see [docs/stripe.md](/root/Projects/formcatch/docs/stripe.md).
 
 ## Architecture
 

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createCheckoutSession, getAppUrl, getProPriceId } from "@/lib/stripe";
+import {
+  createCheckoutSession,
+  getAppUrl,
+  getPriceIdForPlan,
+  isStripePlan,
+} from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
@@ -25,16 +30,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 });
   }
 
-  if (plan !== "pro") {
-    return NextResponse.json({ error: "Unsupported plan" }, { status: 400 });
+  if (!isStripePlan(plan)) {
+    return NextResponse.json({ error: "Unsupported paid plan" }, { status: 400 });
   }
 
   try {
-    const priceId = await getProPriceId();
+    const priceId = await getPriceIdForPlan(plan);
     const baseUrl = getAppUrl(req.nextUrl.origin);
     const session = await createCheckoutSession({
       baseUrl,
       email,
+      plan,
       priceId,
     });
 
@@ -48,9 +54,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Stripe checkout error:", error);
+    const message =
+      error instanceof Error &&
+      (error.message.startsWith("Missing STRIPE_") ||
+        error.message.startsWith("Missing Stripe price"))
+        ? error.message
+        : "Unable to create Stripe checkout session";
 
     return NextResponse.json(
-      { error: "Unable to create Stripe checkout session" },
+      { error: message },
       { status: 500 },
     );
   }
