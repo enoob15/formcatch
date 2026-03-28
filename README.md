@@ -17,7 +17,26 @@ No signup. No database. No backend code. Just HTML.
 - **Spam protection** — built-in honeypot field + rate limiting
 - **Custom redirects** — add `_redirect` field for custom thank-you pages
 - **CORS enabled** — works from any domain
+- **Freemium SaaS** — $0/$5/$15 tiers with Stripe payments
 - **Open source** — MIT licensed
+
+## 🚀 Revenue Status: READY FOR PAYMENTS
+
+FormCatch is 100% revenue-ready! Complete freemium SaaS with Stripe integration.
+
+**Pricing Tiers:**
+- **Free**: 5 submissions/month  
+- **Pro ($5/month)**: 100 submissions/month
+- **Team ($15/month)**: 1000 submissions/month + collaboration features
+
+**✅ Revenue Infrastructure:**
+- Stripe checkout sessions ✓
+- Subscription management ✓ 
+- Usage tracking ✓
+- Payment webhooks ✓
+- Landing page ✓
+
+**🔑 Deployment:** Ready! Run `./deploy-stripe-key.sh` to enable payments.
 
 ## Usage
 
